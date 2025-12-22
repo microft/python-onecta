@@ -16,7 +16,7 @@ USERNAME = os.environ.get("MQTT_USERNAME")       # set if you enabled authentica
 PASSWORD = os.environ.get("MQTT_PASSWD")   # set if you enabled authentication
 
 DB_PATH = "mqtt_events.db"
-BATCH_SIZE = 100          # insert rows in batches
+BATCH_SIZE = 3          # insert rows in batches
 FLUSH_INTERVAL = 1.0      # seconds
 # ----------------------------------------
 
@@ -68,6 +68,7 @@ def db_worker():
 
         now = time.time()
         if len(batch) >= BATCH_SIZE or (batch and now - last_flush >= FLUSH_INTERVAL):
+            print(f"{datetime.now().isoformat()} sqlite flush {len(batch)}")
             cur.executemany(
                 "INSERT INTO mqtt_messages (topic, payload, qos, retain, ts) VALUES (?, ?, ?, ?, ?)",
                 batch
@@ -75,7 +76,6 @@ def db_worker():
             conn.commit()
             batch.clear()
             last_flush = now
-            print(f"{datetime.now().isoformat()} sqlite flush")
 
 
 def on_connect(client, userdata, flags, rc):

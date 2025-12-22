@@ -28,7 +28,7 @@ TIMEOUT = 60*10
 
 client = mqtt.Client()
 client.username_pw_set(USERNAME, PASSWORD)
-client.connect(BROKER, PORT, 60)
+client.connect(BROKER, PORT, TIMEOUT*100)
 
 
 def setup_logging(zf):
