@@ -8,7 +8,6 @@ import time
 import logging
 import gzip
 import json
-import random
 import paho.mqtt.client as mqtt
 
 from daikin import Daikin
