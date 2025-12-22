@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 import os
 import time
@@ -17,6 +18,10 @@ DB_PATH = "mqtt_events.db"
 BATCH_SIZE = 100          # insert rows in batches
 FLUSH_INTERVAL = 1.0      # seconds
 # ----------------------------------------
+
+
+_logger = logging.getLogger(__name__)
+
 
 
 # Thread-safe queue for decoupling MQTT from SQLite
@@ -85,6 +90,7 @@ def on_message(client, userdata, msg):
             int(msg.retain),
             int(time.time())
         ))
+        _logger.info(f"Writting {msg.payload}")
     except queue.Full:
         # Drop messages if DB can't keep up
         pass
