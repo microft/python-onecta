@@ -24,6 +24,8 @@ USERNAME = os.environ.get("MQTT_USERNAME")       # set if you enabled authentica
 PASSWORD = os.environ.get("MQTT_PASSWD")   # set if you enabled authentication
 TOPIC_TEMPLATE = "sensors/temperature/{device_id}"
 
+TIMEOUT = 60*10
+
 client = mqtt.Client()
 client.username_pw_set(USERNAME, PASSWORD)
 client.connect(BROKER, PORT, 60)
@@ -53,6 +55,7 @@ def monitor():
     while True:
         xpto = daikin.get_all_management_points()
 
+        print(datetime.now().isoformat())
         for mp in xpto:
 
             ip = mp["gateway"]["ipAddress"]["value"]
@@ -103,7 +106,7 @@ def monitor():
         # They suggest one per 10 minutes, which leaves around 50 for
         # actually controlling the system. Or perhaps downloading
         # consumption figures at the end of the day.
-        time.sleep(60)
+        time.sleep(TIMEOUT)
         print("----------")
 
 

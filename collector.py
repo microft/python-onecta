@@ -5,6 +5,7 @@ import time
 import queue
 import threading
 import paho.mqtt.client as mqtt
+from datetime import datetime
 
 # ---------------- CONFIG ----------------
 MQTT_BROKER = "localhost"
@@ -74,6 +75,7 @@ def db_worker():
             conn.commit()
             batch.clear()
             last_flush = now
+            print(f"{datetime.now().isoformat()} sqlite flush")
 
 
 def on_connect(client, userdata, flags, rc):
