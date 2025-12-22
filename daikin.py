@@ -74,7 +74,8 @@ class Daikin:
 
         self.id = self.app["id"]
         self.secret = self.app["secret"]
-        self.device = self.app.get("device", None)
+        # self.device = self.app.get("device", None)
+        self.device = "1012d943-99c9-4d5c-8a57-333aa4fbabd8"
 
         try:
             with self.key_file.open() as kf:
@@ -219,6 +220,10 @@ class Daikin:
         r = self.session.request("PATCH", url, headers=headers, json=payload, timeout=30)
         r.raise_for_status()
 
+    def get_all_management_points(self):
+        gw = self.get("gateway-devices")
+        return [{item["embeddedId"]: item for item in g["managementPoints"]} for g in gw]
+
     def management_points(self):
         """Return the "managePoints" from the first gateway device.
 
@@ -243,18 +248,18 @@ class Daikin:
     def set_temperature_control(self, name, value):
         """Patch a temperature control = either "roomTemperature" or "leavingWaterOffset" """
         self.patch(
-            "climateControlMainZone/characteristics/temperatureControl",
+            "climateControl/characteristics/temperatureControl",
             path="/operationModes/heating/setpoints/" + name,
             value=value,
         )
-
 
     def set_powerful_mode(self, state):
         """Turn water immersion heater on or off"""
         self.patch(
             "domesticHotWaterTank/characteristics/powerfulMode",
-            value = "on" if state else "off"
+            value="on" if state else "off"
         )
+
 
 def main():
     """Entry point if invoked as a script"""
@@ -301,7 +306,7 @@ def main():
 
     elif sys.argv[1] == "sensors":
         mp = daikin.management_points()
-
+        print(mp)
         sd = mp["climateControlMainZone"]["sensoryData"]["value"]
         lwt = sd["leavingWaterTemperature"]["value"]
         outdoor = sd["outdoorTemperature"]["value"]
