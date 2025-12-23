@@ -24,11 +24,8 @@ USERNAME = os.environ.get("MQTT_USERNAME")       # set if you enabled authentica
 PASSWORD = os.environ.get("MQTT_PASSWD")   # set if you enabled authentication
 TOPIC_TEMPLATE = "sensors/temperature/{device_id}"
 
-TIMEOUT = 60*10
+TIMEOUT = 60*15
 
-client = mqtt.Client()
-client.username_pw_set(USERNAME, PASSWORD)
-client.connect(BROKER, PORT, TIMEOUT*100)
 
 
 def setup_logging(zf):
@@ -100,7 +97,11 @@ def monitor():
                 "timestamp": datetime.now().isoformat()
             }
             topic = TOPIC_TEMPLATE.format(device_id=device_id)
+            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            client.username_pw_set(USERNAME, PASSWORD)
+            client.connect(BROKER, PORT, TIMEOUT*10)
             client.publish(topic, json.dumps(payload), qos=1)
+            client.disconnect()
 
         # API requests are limited to 200 per day
         # They suggest one per 10 minutes, which leaves around 50 for
