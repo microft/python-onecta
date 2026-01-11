@@ -8,7 +8,6 @@ import asyncio
 import struct
 from bleak import BleakScanner, BleakClient
 
-
 XIAOMI_DEVICES = {
     "8E54CB01-FED7-771B-181D-BE97084613F5": "THSotao",
     "BE2DA4F4-6404-24E4-01E7-606AA84AE025": "THQuarto",
@@ -123,7 +122,7 @@ async def scan_and_dump():
         #print(f"Metadata: {device}", flush=True)
         # print(device, flush=True)
         #if device.name and "LYWSD03MMC" in device.name:
-        if device.address in XIAOMI_DEVICES.keys():
+        if device.address in XIAOMI_DEVICES.keys() or device.address in MAC_TO_NAMES.keys():
             print(f"{device.address}  ({XIAOMI_DEVICES[device.address]})", flush=True)
             try:
                 decode_ble_packet(adv)
