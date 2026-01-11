@@ -24,9 +24,8 @@ USERNAME = os.environ.get("MQTT_USERNAME")       # set if you enabled authentica
 PASSWORD = os.environ.get("MQTT_PASSWD")   # set if you enabled authentication
 TOPIC_TEMPLATE = "sensors/temperature/{device_id}"
 
-client = mqtt.Client()
-client.username_pw_set(USERNAME, PASSWORD)
-client.connect(BROKER, PORT, 60)
+TIMEOUT = 60*15
+
 
 
 def setup_logging(zf):
@@ -53,6 +52,7 @@ def monitor():
     while True:
         xpto = daikin.get_all_management_points()
 
+        print(datetime.now().isoformat())
         for mp in xpto:
 
             ip = mp["gateway"]["ipAddress"]["value"]
@@ -97,13 +97,17 @@ def monitor():
                 "timestamp": datetime.now().isoformat()
             }
             topic = TOPIC_TEMPLATE.format(device_id=device_id)
+            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            client.username_pw_set(USERNAME, PASSWORD)
+            client.connect(BROKER, PORT, TIMEOUT*10)
             client.publish(topic, json.dumps(payload), qos=1)
+            client.disconnect()
 
         # API requests are limited to 200 per day
         # They suggest one per 10 minutes, which leaves around 50 for
         # actually controlling the system. Or perhaps downloading
         # consumption figures at the end of the day.
-        time.sleep(60)
+        time.sleep(TIMEOUT)
         print("----------")
 
 

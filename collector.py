@@ -5,6 +5,7 @@ import time
 import queue
 import threading
 import paho.mqtt.client as mqtt
+from datetime import datetime
 
 # ---------------- CONFIG ----------------
 MQTT_BROKER = "localhost"
@@ -67,6 +68,7 @@ def db_worker():
 
         now = time.time()
         if len(batch) >= BATCH_SIZE or (batch and now - last_flush >= FLUSH_INTERVAL):
+            print(f"{datetime.now().isoformat()} sqlite flush {len(batch)}")
             cur.executemany(
                 "INSERT INTO mqtt_messages (topic, payload, qos, retain, ts) VALUES (?, ?, ?, ?, ?)",
                 batch
