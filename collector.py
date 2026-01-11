@@ -16,7 +16,7 @@ PASSWORD = os.environ.get("MQTT_PASSWD")   # set if you enabled authentication
 
 DB_PATH = "mqtt_events.db"
 BATCH_SIZE = 100          # insert rows in batches
-FLUSH_INTERVAL = 1.0      # seconds
+FLUSH_INTERVAL = 30.0      # seconds
 # ----------------------------------------
 
 
