@@ -11,8 +11,9 @@ from typing import Any, Optional
 
 POLL_INTERVAL_SECONDS = 15 * 60
 OUTDOOR_THRESHOLD_C = 30.0
+MIN_OUTDOOR_TEMPERATURE_C = 27.0
 COOLING_SETPOINT_C = 27.0
-ROOM_OFF_THRESHOLD_C = 27.0
+ROOM_OFF_THRESHOLD_OFFSET_C = 1.0
 CLIMATE_CONTROL = "climateControl"
 MASTER_DEVICE_NAME = "Sotao"
 NIGHT_SKIP_DEVICE_NAME = "Suite"
@@ -237,6 +238,26 @@ def all_room_temperatures_below(
     return True
 
 
+def average_outdoor_temperature(
+    readings: list[tuple[dict[str, Any], dict[str, Any], Optional[float]]]
+) -> Optional[float]:
+    if not readings:
+        return None
+
+    outdoor_temperatures = []
+    for _, climate, outdoor in readings:
+        if outdoor is None:
+            _logger.info(
+                "%s outdoor temperature is unavailable; not calculating room-off threshold",
+                device_name(climate),
+            )
+            return None
+
+        outdoor_temperatures.append(outdoor)
+
+    return sum(outdoor_temperatures) / len(outdoor_temperatures)
+
+
 def turn_all_devices_off(
     daikin: Any,
     readings: list[tuple[dict[str, Any], dict[str, Any], Optional[float]]],
@@ -454,11 +475,20 @@ def sync_once(
     ]
 
     if not hot_readings:
-        if all_room_temperatures_below(readings, ROOM_OFF_THRESHOLD_C):
+        average_outdoor = average_outdoor_temperature(readings)
+        if average_outdoor is not None:
+            room_off_threshold = max(average_outdoor - ROOM_OFF_THRESHOLD_OFFSET_C, MIN_OUTDOOR_TEMPERATURE_C)
+        else:
+            room_off_threshold = None
+
+        if room_off_threshold is not None and all_room_temperatures_below(readings, room_off_threshold):
             _logger.info(
-                "no outdoor readings are above %.1f C and all rooms are below %.1f C; turning all units off",
+                "no outdoor readings are above %.1f C and all rooms are below %.1f C "
+                "(average outdoor %.1f C - %.1f C); turning all units off",
                 threshold,
-                ROOM_OFF_THRESHOLD_C,
+                room_off_threshold,
+                average_outdoor,
+                ROOM_OFF_THRESHOLD_OFFSET_C,
             )
             turn_all_devices_off(daikin, readings, dry_run=dry_run)
             return
