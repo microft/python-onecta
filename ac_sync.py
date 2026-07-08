@@ -14,7 +14,7 @@ OUTDOOR_THRESHOLD_C = 29.0
 MIN_OUTDOOR_TEMPERATURE_C = 27.0
 COOLING_SETPOINT_C = 28.0
 ROOM_OFF_THRESHOLD_OFFSET_C = 1.0
-SOTAO_DEFAULT_ON_TEMPERATURE_C = 27.0
+MAX_CONFORT_TEMPERATURE = 27.0
 CLIMATE_CONTROL = "climateControl"
 MASTER_DEVICE_NAME = "Sotao"
 NIGHT_SKIP_DEVICE_NAME = "Suite"
@@ -151,6 +151,7 @@ def add_power_patch(
     device_label: str,
     current: Any,
     desired: Any,
+    room: Optional[float],
 ) -> None:
     if desired is None:
         return
@@ -162,6 +163,20 @@ def add_power_patch(
         if desired != "off":
             _logger.info("%s power target overridden to off for the night window", device_label)
         desired = "off"
+
+    if desired == "on":
+        if room is None:
+            _logger.info("%s room temperature is unavailable; not turning it on", device_label)
+            return
+
+        if room <= MAX_CONFORT_TEMPERATURE:
+            _logger.info(
+                "%s room temperature %.1f C is not above %.1f C; not turning it on",
+                device_label,
+                room,
+                MAX_CONFORT_TEMPERATURE,
+            )
+            return
 
     if current == desired:
         return
@@ -222,6 +237,7 @@ def enforce_night_skip_device_off(
             name,
             characteristic_value(climate, "onOffMode"),
             "off",
+            room_temperature(climate),
         )
         apply_patches(
             daikin,
@@ -291,6 +307,7 @@ def turn_all_devices_off(
             name,
             characteristic_value(climate, "onOffMode"),
             "off",
+            room_temperature(climate),
         )
         apply_patches(
             daikin,
@@ -317,14 +334,14 @@ def sync_sotao_defaults_if_warm(
             _logger.info("%s room temperature is unavailable; not applying initial default sync", MASTER_DEVICE_NAME)
             return
 
-        if room < SOTAO_DEFAULT_ON_TEMPERATURE_C:
+        if room <= MAX_CONFORT_TEMPERATURE:
             return
 
         _logger.info(
-            "%s room temperature %.1f C is at or above %.1f C; applying default cooling sync",
+            "%s room temperature %.1f C is above %.1f C; applying default cooling sync",
             MASTER_DEVICE_NAME,
             room,
-            SOTAO_DEFAULT_ON_TEMPERATURE_C,
+            MAX_CONFORT_TEMPERATURE,
         )
         sync_device(daikin, device, setpoint=setpoint, dry_run=dry_run)
         set_characteristic_value(climate, "operationMode", "cooling")
@@ -373,6 +390,7 @@ def sync_device(
         name,
         characteristic_value(climate, "onOffMode"),
         "on",
+        room_temperature(climate),
     )
 
     already_synced_message = "%s is already on cooling at %.1f C" % (name, setpoint)
@@ -477,6 +495,7 @@ def sync_device_from_master(
         name,
         characteristic_value(climate, "onOffMode"),
         master_power,
+        room_temperature(climate),
     )
 
     already_synced_message = "%s already matches %s" % (name, master_name)
