@@ -14,6 +14,7 @@ OUTDOOR_THRESHOLD_C = 29.0
 MIN_OUTDOOR_TEMPERATURE_C = 27.0
 COOLING_SETPOINT_C = 28.0
 ROOM_OFF_THRESHOLD_OFFSET_C = 1.0
+SOTAO_DEFAULT_ON_TEMPERATURE_C = 27.0
 CLIMATE_CONTROL = "climateControl"
 MASTER_DEVICE_NAME = "Sotao"
 NIGHT_SKIP_DEVICE_NAME = "Suite"
@@ -105,6 +106,25 @@ def fan_direction_value(climate: dict[str, Any], mode: str, direction: str) -> O
 def set_device(daikin: Any, gateway_id: str, management_path: str, **payload: Any) -> None:
     daikin.device = gateway_id
     daikin.patch(management_path, **payload)
+
+
+def set_characteristic_value(management_point: dict[str, Any], name: str, value: Any) -> None:
+    characteristic = management_point.get(name)
+    if isinstance(characteristic, dict):
+        characteristic["value"] = value
+
+
+def set_room_temperature_setpoint(climate: dict[str, Any], mode: str, value: float) -> None:
+    temperature_control = characteristic_value(climate, "temperatureControl") or {}
+    room_temperature = nested_value(
+        temperature_control,
+        "operationModes",
+        mode,
+        "setpoints",
+        "roomTemperature",
+    )
+    if isinstance(room_temperature, dict):
+        room_temperature["value"] = value
 
 
 def add_patch_if_needed(
@@ -280,6 +300,39 @@ def turn_all_devices_off(
             dry_run,
             "%s is already off" % name,
         )
+
+
+def sync_sotao_defaults_if_warm(
+    daikin: Any,
+    readings: list[tuple[dict[str, Any], dict[str, Any], Optional[float]]],
+    setpoint: float,
+    dry_run: bool,
+) -> None:
+    for device, climate, _ in readings:
+        if device_name(climate).casefold() != MASTER_DEVICE_NAME.casefold():
+            continue
+
+        room = room_temperature(climate)
+        if room is None:
+            _logger.info("%s room temperature is unavailable; not applying initial default sync", MASTER_DEVICE_NAME)
+            return
+
+        if room < SOTAO_DEFAULT_ON_TEMPERATURE_C:
+            return
+
+        _logger.info(
+            "%s room temperature %.1f C is at or above %.1f C; applying default cooling sync",
+            MASTER_DEVICE_NAME,
+            room,
+            SOTAO_DEFAULT_ON_TEMPERATURE_C,
+        )
+        sync_device(daikin, device, setpoint=setpoint, dry_run=dry_run)
+        set_characteristic_value(climate, "operationMode", "cooling")
+        set_characteristic_value(climate, "onOffMode", "on")
+        set_room_temperature_setpoint(climate, "cooling", setpoint)
+        return
+
+    _logger.warning("%s was not found; cannot apply initial default sync", MASTER_DEVICE_NAME)
 
 
 def sync_device(
@@ -467,6 +520,8 @@ def sync_once(
             outdoor,
             cooling_setpoint(climate),
         )
+
+    sync_sotao_defaults_if_warm(daikin, readings, setpoint=setpoint, dry_run=dry_run)
 
     hot_readings = [
         (device, climate, outdoor)
